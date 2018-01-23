@@ -1,0 +1,116 @@
+' ########################## V1.1 ###################################
+' all the following code is for filtering rows of a table and hiding/showing columns
+' it will only work on the currently active sheet and only with the first table (however that is determined)
+' insert this in the worksheet you want this to work in
+' the filter row is always 2 rows above the header row of the table!!
+' type what you want to filter for in the column below
+' delete to remove filter
+' typing " " (space) filters for empty cells
+'  --- V1.1 --- 2016-06-10
+' typing "! " filters for everything but empty cells
+
+' #### todo
+' first cell before first row should be filter for everything
+
+Private Sub Worksheet_Change(ByVal Target As Range) 'when something is changed, this macro is executed
+    ' ########## finding out the name of the table
+    Dim tbl As ListObject ' the table object
+    Dim tablename As String ' the name of the table
+    Dim listobjectcount As Integer ' the count of all the list objects/tables
+
+    listobjectcount = ActiveSheet.ListObjects.Count
+
+    If listobjectcount >= 1 Then ' only do this filtering stuff if there is at least one table present
+        For Each tbl In ActiveSheet.ListObjects ' for each table in the current worksheet
+            tablename = tbl.Name
+            Exit For ' we exit after the first table so we get only one table, the first one!
+        Next tbl
+
+        header_first_column = tbl.Range.Cells(1, 1).Column ' get column index of first cell in range
+        header_last_column = tbl.Range.Cells.Columns.Count + min_col + 1 ' get column index of last cell in range
+        header_row = tbl.Range.Cells(1, 1).Row ' get row index from the header row
+
+        target_first_row = Target.Row
+        target_last_row = Target.Rows.Count + Target.Row - 1
+        target_first_column = Target.Column
+        target_last_column = Target.Columns.Count + Target.Column - 1
+
+        ' if the user changes a cell, the current date will be inserted into the 'last changed' column
+        If ((target_last_column <= 18 And target_first_column >= 3) Or (target_last_column <= 25 And target_first_column >= 23)) And target_first_row >= 5 And Range("B1").Value = 1 Then
+            For Each ce In Target
+               ' write the current date in the "last changed' column
+                Cells(ce.Row, 27).Value = Date
+            Next
+        End If
+
+        If Target.Cells.Count > 1 Then
+            ' if the cells are in the row with the filter row
+            If Target.Rows.Count = 1 And Target.Row = header_row - 2 Then
+                ' if the selected cells are betwen the first and last column of the filter row
+                first_target_column = Target.Column
+                last_target_column = Target.Columns.Count + Target.Column - 1
+
+                ' if the target range fits in the filter row do the filtering
+                If first_target_column >= header_first_column And last_target_column <= header_last_column Then
+                    For Each ce In Target
+                        ' filter the same way as in the code further below
+                        If IsEmpty(ce) Then ' if the target cell is empty, i.e. we deleted the content ...
+                            ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(ce.Column - 1) ' ... remove the filter
+                        ElseIf ce = " " Then ' show only empty cells
+                            ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(ce.Column - 1), _
+                                Criteria1:="=", _
+                                Operator:=xlOr, Criteria2:=ce.Value
+                        ElseIf Target = "! " Then ' show only non-empty cells
+                            ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(ce.Column - 1), _
+                                Criteria1:="<>", _
+                                Operator:=xlOr, Criteria2:=ce.Value
+'                        ElseIf Target = "!*" Then ' filter for everything but this value
+'                            temp_string = Right(ce.Value, Len(ce.Value) - 1)
+'                            ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(ce.Column - 1), _
+'                                Criteria1:="<>" & temp_string
+'                            MsgBox ("yes") ' todo: fix this. we never reach this part. and remember to also change the text below. it's just a copy of this filter thing here.
+                        Else ' do filter
+                            ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(ce.Column - 1), _
+                                Criteria1:="=*" & ce.Value & "*", _
+                                Operator:=xlOr, Criteria2:=ce.Value
+                                'do the filter with those 2 cells as parameters
+                        End If
+                    Next ce
+                End If
+            End If
+        ElseIf Target.Cells.Count = 1 Then
+            If header_row >= 3 Then ' only filter when there is space above the table for the filter row
+                If Target.Column >= header_first_column And Target.Column <= header_last_column And Target.Row = header_row - 2 Then 'change this to make this dynamic instead of static
+                    If IsEmpty(Target) Then ' if the target cell is empty, i.e. we deleted the content ...
+                        ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(Target.Column - 1) ' ... remove the filter
+                    ElseIf Target = " " Then
+                        ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(Target.Column - 1), _
+                            Criteria1:="=", _
+                            Operator:=xlOr, Criteria2:=Target.Value
+                    ElseIf Target = "! " Then
+                        ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(Target.Column - 1), _
+                            Criteria1:="<>", _
+                            Operator:=xlOr, Criteria2:=Target.Value
+'                    ElseIf Target = "!*" Then ' filter for everything but this value
+'                        temp_string = Right(ce.Value, Len(ce.Value) - 1)
+'                        ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(ce.Column - 1), _
+'                            Criteria1:="<>" & temp_string
+'                        MsgBox ("yes")
+                    Else ' do filter
+                        ActiveSheet.ListObjects(tablename).Range.AutoFilter Field:=(Target.Column - 1), _
+                            Criteria1:="=*" & Target.Value & "*", _
+                            Operator:=xlOr, Criteria2:=Target.Value
+                            'do the filter with those 2 cells as parameters
+                    End If
+                    ActiveSheet.Rows.AutoFit
+                End If
+            End If
+
+            ' This will select the first cell of the list after applying the filter. It's too slow atm however.
+'            Call MoveOneCellDownAFilteredList(Target)
+
+        Else
+            MsgBox ("tabelle muss mindestens in zeile 3 sein")
+        End If
+    End If
+End Sub
