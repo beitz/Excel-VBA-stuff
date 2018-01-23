@@ -1,0 +1,49 @@
+Sub HideColumns() 'hides columns where the first letter is not in capital letters
+    Application.ScreenUpdating = False 'makes stuff faster but you dont see what excel does
+
+    ' ########## finding out the name of the table
+    Dim tbl As ListObject ' the table object
+    Dim tablename As String ' the name of the table
+    Dim listobjectcount As Integer ' the count of all the list objects/tables
+    Dim ce As Range 'the current cell, that is being looked at
+    Dim header_range As Range 'the range which is scanned for text
+    Dim previous_selection As Range 'currently selected cell is stored here
+    Dim show_or_hide_cell As Range ' the cell where we store the hide/show variable
+    Dim show_or_hide_value As Integer ' the value of the cell where we store this variable. 1 = columns currently shown. 0 = columns currently hidden
+
+    Set show_or_hide_cell = Range("A1")
+    show_or_hide_value = show_or_hide_cell.Value
+
+    listobjectcount = ActiveSheet.ListObjects.Count
+    Set previous_selection = Selection
+
+    If listobjectcount >= 1 Then ' only do this filtering stuff if there is at least one table present
+        For Each tbl In ActiveSheet.ListObjects ' for each table in the current worksheet
+            tablename = tbl.Name
+            Exit For ' we exit after the first table so we get only one table, the first one!
+        Next tbl
+
+        header_first_column = tbl.Range.Cells(1, 1).Column ' get column index of first cell in range
+        header_last_column = tbl.Range.Cells.Columns.Count + min_col + 1 ' get column index of last cell in range
+        header_row = tbl.Range.Cells(1, 1).Row ' get row index from the header row
+
+        Set header_range = Range(Cells(header_row, header_first_column), Cells(header_row, header_last_column))
+
+        If show_or_hide_value = 1 Then 'wenn sichtbar, dann versteck die spalten
+            For Each ce In header_range 'jede spalte einmal durchgehen
+                If Mid(ce.Value, 1, 1) = LCase(Mid(ce.Value, 1, 1)) And ce.Value <> "" Then 'wenn 1. buchstabe klein geschrieben, dann
+                    Columns(ce.Column).Select 'select the column. workaround until i figure out how to hide columns without selecting them
+                    Selection.EntireColumn.Hidden = True 'hide the column
+                End If
+            Next
+            show_or_hide_cell.Value = 0 'set this to 0 so next time the other stuff in this if/else will be executed
+        'ElseIf Range("A1").Value = 0 Then 'wenn versteckt, mach sichtbar
+        Else
+            Range("A:BZ").EntireColumn.Hidden = False 'show all the columns
+            show_or_hide_cell.Value = 1 'set this to 1 so next time the other stuff in this if/else will be executed
+        End If
+        previous_selection.Select 'select the previously stored range
+    End If
+
+    Application.ScreenUpdating = True
+End Sub
